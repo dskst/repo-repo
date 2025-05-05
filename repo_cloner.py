@@ -18,6 +18,12 @@ def clone_repository(repo_name: str, repo_url: str, base_dir: str) -> bool:
     """
     try:
         target_dir = os.path.join(base_dir, repo_name)
+        
+        # すでにクローン済みの場合はスキップ
+        if os.path.exists(target_dir):
+            print(f"スキップ: {repo_name} (すでにクローン済み)")
+            return True
+            
         print(f"クローン開始: {repo_name}")
         Repo.clone_from(repo_url, target_dir)
         print(f"クローン成功: {repo_name}")
@@ -46,9 +52,15 @@ def main():
         total = len(df)
         success = 0
         failed = 0
+        skipped = 0
 
         # 各リポジトリのクローン
         for _, row in df.iterrows():
+            target_dir = os.path.join(base_dir, row['reponame'])
+            if os.path.exists(target_dir):
+                skipped += 1
+                continue
+                
             if clone_repository(row['reponame'], row['repourl'], base_dir):
                 success += 1
             else:
@@ -59,6 +71,7 @@ def main():
         print(f"合計: {total} リポジトリ")
         print(f"成功: {success} リポジトリ")
         print(f"失敗: {failed} リポジトリ")
+        print(f"スキップ: {skipped} リポジトリ")
 
     except Exception as e:
         print(f"エラーが発生しました: {str(e)}")
