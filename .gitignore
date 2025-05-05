@@ -15,3 +15,4 @@ env/
 
 # Cloned repositories
 repos/ 
+analysis_results/
