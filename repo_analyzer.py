@@ -1,146 +1,84 @@
 import os
 import sys
-import subprocess
 import pandas as pd
 from pathlib import Path
-import math
-import time
-import re
-from collections import defaultdict
+from datetime import datetime
+from math import exp
+from repo_utils import extract_repo_info, run_command, analyze_developers
 
-def run_command(command: str, cwd: str) -> str:
+def analyze_repository(repo_url: str, base_dir: str, output_base_dir: str) -> bool:
     """
-    コマンドを実行し、その出力を返す関数
+    リポジトリを分析する関数
     
     Args:
-        command: 実行するコマンド
-        cwd: コマンドを実行するディレクトリ
+        repo_url: リポジトリのURL
+        base_dir: リポジトリのベースディレクトリ
+        output_base_dir: 出力先のベースディレクトリ
     
     Returns:
-        str: コマンドの出力
+        bool: 分析が成功したかどうか
     """
     try:
-        result = subprocess.run(
-            command,
-            cwd=cwd,
-            shell=True,
-            check=True,
-            text=True,
-            capture_output=True
-        )
-        return result.stdout
-    except subprocess.CalledProcessError as e:
-        print(f"コマンド実行エラー: {command}")
-        print(f"エラー内容: {e.stderr}")
-        return ""
-
-def calc_hotness(commit_timestamps, decay=30*24*60*60):
-    """
-    変更頻度スコアを計算（指数減衰）
-    Args:
-        commit_timestamps: コミットのUNIXタイムスタンプ（リスト）
-        decay: 減衰パラメータ（秒）
-    Returns:
-        float: スコア
-    """
-    now = int(time.time())
-    score = 0
-    for ts in commit_timestamps:
-        weight = math.exp(-(now - ts) / decay)
-        score += weight
-    return score
-
-def analyze_developers(git_log_output: str) -> str:
-    """
-    開発者のドメインごとの集計を行う関数
-    
-    Args:
-        git_log_output: git shortlog -sne の出力
-    
-    Returns:
-        str: ドメインごとの集計結果
-    """
-    # メールアドレスとコミット数を抽出する正規表現
-    pattern = r'^\s*(\d+)\s+.*<([^>]+)>$'
-    
-    # ドメインごとのコミット数を集計
-    domain_commits = defaultdict(int)
-    
-    for line in git_log_output.splitlines():
-        match = re.match(pattern, line)
-        if match:
-            commits = int(match.group(1))
-            email = match.group(2)
-            domain = email.split('@')[-1] if '@' in email else 'unknown'
-            domain_commits[domain] += commits
-    
-    # コミット数の降順でソート
-    sorted_domains = sorted(domain_commits.items(), key=lambda x: x[1], reverse=True)
-    
-    # 結果を文字列に変換
-    result = []
-    for domain, commits in sorted_domains:
-        result.append(f"{commits},{domain}")
-    
-    return '\n'.join(result)
-
-def analyze_repository(repo_name: str, repo_path: str, output_dir: str) -> bool:
-    """
-    リポジトリを解析し、結果をMarkdownファイルに出力する関数
-    
-    Args:
-        repo_name: リポジトリ名
-        repo_path: リポジトリのパス
-        output_dir: 出力ディレクトリ
-    
-    Returns:
-        bool: 解析が成功したかどうか
-    """
-    try:
-        # 出力ディレクトリの作成
-        Path(output_dir).mkdir(exist_ok=True)
+        # URLから組織名とリポジトリ名を抽出
+        org_name, repo_name = extract_repo_info(repo_url)
+        
+        # リポジトリのパス
+        repo_path = os.path.join(base_dir, org_name, repo_name)
+        
+        # 出力先ディレクトリの作成
+        org_output_dir = os.path.join(output_base_dir, org_name)
+        Path(org_output_dir).mkdir(exist_ok=True)
         
         # 出力ファイルのパス
-        output_file = os.path.join(output_dir, f"{repo_name}.md")
+        output_file = os.path.join(org_output_dir, f"{repo_name}.md")
         
         # すでに分析済みの場合はスキップ
         if os.path.exists(output_file):
-            print(f"スキップ: {repo_name} (すでに分析済み)")
+            print(f"スキップ: {org_name}/{repo_name} (すでに分析済み)")
             return True
+            
+        print(f"分析開始: {org_name}/{repo_name}")
         
-        # 解析結果の取得
+        # コード行数の取得
         cloc_output = run_command("cloc .", repo_path)
-        git_log_output = run_command("git shortlog -sne", repo_path)
 
-        # コミット時刻の取得
-        commit_times_str = run_command("git log --pretty=format:\"%ct\"", repo_path)
-        commit_timestamps = [int(line) for line in commit_times_str.strip().splitlines() if line.strip().isdigit()]
-        hotness_score = calc_hotness(commit_timestamps)
-
-        # 開発者のドメインごとの集計
-        developer_stats = analyze_developers(git_log_output)
-
-        # Markdownファイルの作成
-        with open(output_file, "w", encoding="utf-8") as f:
-            f.write(f"# {repo_name}\n\n")
-            f.write("## コード行数\n")
-            f.write("```\n")
-            f.write(cloc_output)
-            f.write("```\n\n")
-            f.write("## 開発者\n")
-            f.write(f"```\n{git_log_output}```\n\n")
-            f.write("### 開発者ドメイン\n")
-            f.write("```\n")
-            f.write(developer_stats)
-            f.write("\n```\n\n")
-            f.write("## 変更頻度スコア\n")
-            f.write(f"{hotness_score:.8f}\n")
+        # コミット履歴の取得
+        git_log = run_command("git log --pretty=format:%H,%ct", repo_path)
         
-        print(f"解析完了: {repo_name}")
+        # コミットの重み付け計算
+        now = datetime.now().timestamp()
+        decay = 30 * 24 * 60 * 60  # 30日を秒に変換
+        total_weight = 0.0
+        
+        for line in git_log.splitlines():
+            commit_hash, timestamp = line.split(',')
+            timestamp = float(timestamp)
+            weight = exp(-(now - timestamp) / decay)
+            total_weight += weight
+        
+        # 開発者の情報を取得
+        git_shortlog = run_command("git shortlog -sne", repo_path)
+        developers = analyze_developers(git_shortlog)
+        
+        # 結果をMarkdownファイルに書き出し
+        with open(output_file, 'w', encoding='utf-8') as f:
+            f.write(f"# {org_name}/{repo_name}\n\n")
+            f.write(f"## コード行数\n")
+            f.write("```\n")
+            f.write(f"{cloc_output}")
+            f.write("```\n\n")
+            f.write(f"## 変更頻度スコア\n")
+            f.write(f"{total_weight:.8f}\n\n")
+            f.write(f"## 開発者\n")
+            f.write(f"```\n{git_shortlog}```\n\n")
+            f.write("### 開発者ドメイン\n")
+            f.write(f"```\n{developers}\n```\n")
+        
+        print(f"分析成功: {org_name}/{repo_name}")
         return True
         
     except Exception as e:
-        print(f"解析失敗: {repo_name} - エラー: {str(e)}")
+        print(f"分析失敗: {repo_url} - エラー: {str(e)}")
         return False
 
 def main():
@@ -151,27 +89,25 @@ def main():
 
     csv_path = sys.argv[1]
     base_dir = "repos"
-    output_dir = "analysis_results"
+    output_base_dir = "analysis_results"
+
+    # 出力ディレクトリの作成
+    Path(output_base_dir).mkdir(exist_ok=True)
 
     try:
-        # CSVファイルの読み込み
-        df = pd.read_csv(csv_path, names=['reponame', 'repourl'])
+        # CSVファイルの読み込み（repourlのみ）
+        df = pd.read_csv(csv_path, names=['repourl'])
         
-        # 解析結果の集計
+        # 分析結果の集計
         total = len(df)
         success = 0
         failed = 0
         skipped = 0
 
-        # 各リポジトリの解析
+        # 各リポジトリの分析
         for _, row in df.iterrows():
-            repo_path = os.path.join(base_dir, row['reponame'])
-            if not os.path.exists(repo_path):
-                print(f"リポジトリが存在しません: {row['reponame']}")
-                failed += 1
-                continue
-                
-            if analyze_repository(row['reponame'], repo_path, output_dir):
+            success_flag = analyze_repository(row['repourl'], base_dir, output_base_dir)
+            if success_flag:
                 success += 1
             else:
                 failed += 1

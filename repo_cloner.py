@@ -3,34 +3,42 @@ import sys
 import pandas as pd
 from git import Repo
 from pathlib import Path
+from repo_utils import extract_repo_info
 
-def clone_repository(repo_name: str, repo_url: str, base_dir: str) -> bool:
+def clone_repository(repo_url: str, base_dir: str) -> tuple[bool, str, str]:
     """
     リポジトリをクローンする関数
     
     Args:
-        repo_name: リポジトリ名
         repo_url: リポジトリのURL
         base_dir: クローン先のベースディレクトリ
     
     Returns:
-        bool: クローンが成功したかどうか
+        tuple[bool, str, str]: (成功したかどうか, 組織名, リポジトリ名)
     """
     try:
-        target_dir = os.path.join(base_dir, repo_name)
+        # URLから組織名とリポジトリ名を抽出
+        org_name, repo_name = extract_repo_info(repo_url)
+        
+        # 組織ごとのディレクトリを作成
+        org_dir = os.path.join(base_dir, org_name)
+        Path(org_dir).mkdir(exist_ok=True)
+        
+        # クローン先のパス
+        target_dir = os.path.join(org_dir, repo_name)
         
         # すでにクローン済みの場合はスキップ
         if os.path.exists(target_dir):
-            print(f"スキップ: {repo_name} (すでにクローン済み)")
-            return True
+            print(f"スキップ: {org_name}/{repo_name} (すでにクローン済み)")
+            return True, org_name, repo_name
             
-        print(f"クローン開始: {repo_name}")
+        print(f"クローン開始: {org_name}/{repo_name}")
         Repo.clone_from(repo_url, target_dir)
-        print(f"クローン成功: {repo_name}")
-        return True
+        print(f"クローン成功: {org_name}/{repo_name}")
+        return True, org_name, repo_name
     except Exception as e:
-        print(f"クローン失敗: {repo_name} - エラー: {str(e)}")
-        return False
+        print(f"クローン失敗: {repo_url} - エラー: {str(e)}")
+        return False, "", ""
 
 def main():
     # コマンドライン引数の確認
@@ -45,8 +53,8 @@ def main():
     Path(base_dir).mkdir(exist_ok=True)
 
     try:
-        # CSVファイルの読み込み
-        df = pd.read_csv(csv_path, names=['reponame', 'repourl'])
+        # CSVファイルの読み込み（repourlのみ）
+        df = pd.read_csv(csv_path, names=['repourl'])
         
         # クローン結果の集計
         total = len(df)
@@ -56,13 +64,12 @@ def main():
 
         # 各リポジトリのクローン
         for _, row in df.iterrows():
-            target_dir = os.path.join(base_dir, row['reponame'])
-            if os.path.exists(target_dir):
-                skipped += 1
-                continue
-                
-            if clone_repository(row['reponame'], row['repourl'], base_dir):
-                success += 1
+            success_flag, org_name, repo_name = clone_repository(row['repourl'], base_dir)
+            if success_flag:
+                if org_name and repo_name:
+                    success += 1
+                else:
+                    skipped += 1
             else:
                 failed += 1
 
