@@ -5,6 +5,8 @@ import pandas as pd
 from pathlib import Path
 import math
 import time
+import re
+from collections import defaultdict
 
 def run_command(command: str, cwd: str) -> str:
     """
@@ -48,6 +50,40 @@ def calc_hotness(commit_timestamps, decay=30*24*60*60):
         score += weight
     return score
 
+def analyze_developers(git_log_output: str) -> str:
+    """
+    開発者のドメインごとの集計を行う関数
+    
+    Args:
+        git_log_output: git shortlog -sne の出力
+    
+    Returns:
+        str: ドメインごとの集計結果
+    """
+    # メールアドレスとコミット数を抽出する正規表現
+    pattern = r'^\s*(\d+)\s+.*<([^>]+)>$'
+    
+    # ドメインごとのコミット数を集計
+    domain_commits = defaultdict(int)
+    
+    for line in git_log_output.splitlines():
+        match = re.match(pattern, line)
+        if match:
+            commits = int(match.group(1))
+            email = match.group(2)
+            domain = email.split('@')[-1] if '@' in email else 'unknown'
+            domain_commits[domain] += commits
+    
+    # コミット数の降順でソート
+    sorted_domains = sorted(domain_commits.items(), key=lambda x: x[1], reverse=True)
+    
+    # 結果を文字列に変換
+    result = []
+    for domain, commits in sorted_domains:
+        result.append(f"{commits},{domain}")
+    
+    return '\n'.join(result)
+
 def analyze_repository(repo_name: str, repo_path: str, output_dir: str) -> bool:
     """
     リポジトリを解析し、結果をMarkdownファイルに出力する関数
@@ -81,6 +117,9 @@ def analyze_repository(repo_name: str, repo_path: str, output_dir: str) -> bool:
         commit_timestamps = [int(line) for line in commit_times_str.strip().splitlines() if line.strip().isdigit()]
         hotness_score = calc_hotness(commit_timestamps)
 
+        # 開発者のドメインごとの集計
+        developer_stats = analyze_developers(git_log_output)
+
         # Markdownファイルの作成
         with open(output_file, "w", encoding="utf-8") as f:
             f.write(f"# {repo_name}\n\n")
@@ -89,9 +128,11 @@ def analyze_repository(repo_name: str, repo_path: str, output_dir: str) -> bool:
             f.write(cloc_output)
             f.write("```\n\n")
             f.write("## 開発者\n")
+            f.write(f"```\n{git_log_output}```\n\n")
+            f.write("### 開発者ドメイン\n")
             f.write("```\n")
-            f.write(git_log_output)
-            f.write("```\n\n")
+            f.write(developer_stats)
+            f.write("\n```\n\n")
             f.write("## 変更頻度スコア\n")
             f.write(f"{hotness_score:.8f}\n")
         
