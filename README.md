@@ -51,9 +51,18 @@ python repo_cloner.py <CSVファイルのパス>
 
 ### リポジトリの解析
 
-1. クローンしたリポジトリの解析
+1. CSVファイルからクローンしたリポジトリの解析
 ```bash
 python repo_analyzer.py <CSVファイルのパス>
+```
+
+2. カレントディレクトリの解析
+```bash
+# デフォルトの出力ファイル名（analysis_result.md）で解析
+python repo_analyzer.py --local
+
+# 出力ファイル名を指定
+python repo_analyzer.py --local <出力ファイル名>
 ```
 
 ## 出力
