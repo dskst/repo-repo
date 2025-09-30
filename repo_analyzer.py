@@ -83,18 +83,31 @@ def analyze_repository(repo_url: str, base_dir: str, output_base_dir: str) -> bo
 
 def analyze_local_repository(repo_path: str = ".", output_file: str = "analysis_result.md") -> bool:
     """
-    Function to analyze the current directory or specified directory
+    Function to analyze the current directory or specified directory/file
 
     Args:
-        repo_path: Directory path to analyze (default: current directory)
+        repo_path: Directory or file path to analyze (default: current directory)
         output_file: Output filename (default: analysis_result.md)
 
     Returns:
         bool: Whether the analysis was successful
     """
     try:
-        repo_path = os.path.abspath(repo_path)
-        repo_name = os.path.basename(repo_path)
+        original_path = os.path.abspath(repo_path)
+
+        # Check if the path exists
+        if not os.path.exists(original_path):
+            print(f"Error: Path not found: {original_path}")
+            return False
+
+        # Store the original name (file or directory)
+        display_name = os.path.basename(original_path)
+
+        # If it's a file, use its parent directory for analysis
+        if os.path.isfile(original_path):
+            repo_path = os.path.dirname(original_path)
+        else:
+            repo_path = original_path
 
         print(f"Analysis started: {repo_path}")
 
@@ -121,9 +134,12 @@ def analyze_local_repository(repo_path: str = ".", output_file: str = "analysis_
         git_shortlog = run_command("git shortlog -sne", repo_path)
         developers = analyze_developers(git_shortlog)
 
+        # Output file path (always relative to current working directory)
+        output_path = os.path.join(os.getcwd(), output_file)
+
         # Write results to Markdown file
-        with open(output_file, 'w', encoding='utf-8') as f:
-            f.write(f"# {repo_name}\n\n")
+        with open(output_path, 'w', encoding='utf-8') as f:
+            f.write(f"# {display_name}\n\n")
             f.write(f"## Lines of Code\n")
             f.write("```\n")
             f.write(f"{cloc_output}")
@@ -136,7 +152,7 @@ def analyze_local_repository(repo_path: str = ".", output_file: str = "analysis_
             f.write(f"```\n{developers}\n```\n")
 
         print(f"Analysis successful: {repo_path}")
-        print(f"Results written to {output_file}")
+        print(f"Results written to {output_path}")
         return True
 
     except Exception as e:
@@ -148,13 +164,26 @@ def main():
     if len(sys.argv) < 2:
         print("Usage:")
         print("  Analyze from CSV: python repo_analyzer.py <CSV file path>")
-        print("  Analyze current directory: python repo_analyzer.py --local [output filename]")
+        print("  Analyze local directory: python repo_analyzer.py --local [directory path] [output filename]")
         sys.exit(1)
 
     # Local analysis mode
     if sys.argv[1] == "--local":
-        output_file = sys.argv[2] if len(sys.argv) > 2 else "analysis_result.md"
-        analyze_local_repository(".", output_file)
+        # Determine directory/file path and output filename
+        if len(sys.argv) == 2:
+            # Only --local: analyze current directory
+            repo_path = "."
+            output_file = "analysis_result.md"
+        elif len(sys.argv) == 3:
+            # --local with one argument: directory or file path
+            repo_path = sys.argv[2]
+            output_file = "analysis_result.md"
+        else:
+            # --local with two arguments: directory/file path and output filename
+            repo_path = sys.argv[2]
+            output_file = sys.argv[3]
+
+        analyze_local_repository(repo_path, output_file)
         sys.exit(0)
 
     csv_path = sys.argv[1]

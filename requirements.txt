@@ -1,3 +1,8 @@
 gitpython==3.1.41
 pandas==2.2.0
-pycloc==0.1.0 
+
+# Note: `pycloc` was removed because it isn't available on PyPI (pip install fails).
+# Alternatives you can use for counting lines of code or metrics:
+# - cloc (command-line, good for many languages): `brew install cloc` then `cloc /path`
+# - pygount (Python package): `pip install pygount` then `pygount /path`
+# - radon (Python metrics, LOC & complexity): `pip install radon` then `radon raw -s /path`

@@ -56,14 +56,24 @@ python repo_cloner.py <CSV file path>
 python repo_analyzer.py <CSV file path>
 ```
 
-2. Analyze current directory
+2. Analyze local directory or file
 ```bash
-# Analyze with default output filename (analysis_result.md)
+# Analyze current directory with default output filename (analysis_result.md)
 python repo_analyzer.py --local
 
-# Specify output filename
-python repo_analyzer.py --local <output filename>
+# Analyze specified directory or file with default output filename
+python repo_analyzer.py --local /path/to/repository
+python repo_analyzer.py --local /path/to/file.py
+
+# Analyze specified directory or file with custom output filename
+python repo_analyzer.py --local /path/to/repository custom_report.md
+python repo_analyzer.py --local /path/to/file.py custom_report.md
 ```
+
+**Note**:
+- When specifying a file path, the parent directory of the file will be analyzed
+- The output file is always saved in the current working directory (where you run the command)
+- To specify a custom output filename, you must provide it as the second argument after the directory/file path
 
 ## Output
 
