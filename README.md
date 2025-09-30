@@ -1,90 +1,90 @@
-# GitHubリポジトリクローナー
+# GitHub Repository Cloner
 
-このプログラムは、CSVファイルに記載されたGitHubリポジトリを一括でクローンし、解析するためのツールです。
+This program is a tool for batch cloning and analyzing GitHub repositories listed in a CSV file.
 
-## 必要条件
+## Requirements
 
-- Python 3.8以上
+- Python 3.8 or higher
 - pip
-- cloc (コード行数カウントツール)
+- cloc (code line counting tool)
 
-## インストール方法
+## Installation
 
-1. リポジトリをクローン
+1. Clone the repository
 ```bash
 git clone <repository-url>
 cd <repository-directory>
 ```
 
-2. 依存関係のインストール
+2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
 
-3. clocのインストール
+3. Install cloc
 ```bash
-# macOSの場合
+# For macOS
 brew install cloc
 
-# Ubuntu/Debianの場合
+# For Ubuntu/Debian
 sudo apt-get install cloc
 
-# Windowsの場合
+# For Windows
 choco install cloc
 ```
 
-## 使用方法
+## Usage
 
-### リポジトリのクローン
+### Cloning Repositories
 
-1. CSVファイルの準備
-以下の形式でCSVファイルを作成してください：
+1. Prepare a CSV file
+Create a CSV file in the following format:
 ```
 reponame,repourl
 example-repo,https://github.com/username/example-repo.git
 ```
 
-2. プログラムの実行
+2. Run the program
 ```bash
-python repo_cloner.py <CSVファイルのパス>
+python repo_cloner.py <CSV file path>
 ```
 
-### リポジトリの解析
+### Analyzing Repositories
 
-1. CSVファイルからクローンしたリポジトリの解析
+1. Analyze repositories cloned from CSV file
 ```bash
-python repo_analyzer.py <CSVファイルのパス>
+python repo_analyzer.py <CSV file path>
 ```
 
-2. カレントディレクトリの解析
+2. Analyze current directory
 ```bash
-# デフォルトの出力ファイル名（analysis_result.md）で解析
+# Analyze with default output filename (analysis_result.md)
 python repo_analyzer.py --local
 
-# 出力ファイル名を指定
-python repo_analyzer.py --local <出力ファイル名>
+# Specify output filename
+python repo_analyzer.py --local <output filename>
 ```
 
-## 出力
+## Output
 
-### クローン時の出力
+### Clone Output
 
-- クローン開始時：`クローン開始: <リポジトリ名>`
-- クローン成功時：`クローン成功: <リポジトリ名>`
-- クローン失敗時：`クローン失敗: <リポジトリ名> - エラー: <エラーメッセージ>`
-- 処理完了時：合計、成功、失敗したリポジトリ数の集計結果
+- Clone start: `Clone started: <repository name>`
+- Clone success: `Clone successful: <repository name>`
+- Clone failure: `Clone failed: <repository name> - Error: <error message>`
+- Completion: Summary of total, successful, and failed repositories
 
-### 解析時の出力
+### Analysis Output
 
-- 解析結果は `analysis_results` ディレクトリに保存されます
-- 各リポジトリごとに `<リポジトリ名>.md` ファイルが作成されます
-- 解析結果には以下の情報が含まれます：
-  - コード行数（clocの出力）
-  - 開発者情報（git shortlogの出力）
+- Analysis results are saved in the `analysis_results` directory
+- A `<repository name>.md` file is created for each repository
+- Analysis results include the following information:
+  - Lines of code (cloc output)
+  - Developer information (git shortlog output)
 
-## 注意事項
+## Notes
 
-- クローンしたリポジトリは `repos` ディレクトリに保存されます
-- クローンに失敗したリポジトリはスキップされ、次のリポジトリの処理に進みます
-- 既に存在するリポジトリは上書きされません
-- 解析結果は `analysis_results` ディレクトリに保存されます 
+- Cloned repositories are saved in the `repos` directory
+- Failed repositories are skipped and the process continues to the next repository
+- Existing repositories will not be overwritten
+- Analysis results are saved in the `analysis_results` directory 

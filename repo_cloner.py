@@ -7,62 +7,62 @@ from repo_utils import extract_repo_info
 
 def clone_repository(repo_url: str, base_dir: str) -> tuple[bool, str, str]:
     """
-    リポジトリをクローンする関数
-    
+    Function to clone a repository
+
     Args:
-        repo_url: リポジトリのURL
-        base_dir: クローン先のベースディレクトリ
-    
+        repo_url: Repository URL
+        base_dir: Base directory for cloning
+
     Returns:
-        tuple[bool, str, str]: (成功したかどうか, 組織名, リポジトリ名)
+        tuple[bool, str, str]: (success status, organization name, repository name)
     """
     try:
-        # URLから組織名とリポジトリ名を抽出
+        # Extract organization name and repository name from URL
         org_name, repo_name = extract_repo_info(repo_url)
-        
-        # 組織ごとのディレクトリを作成
+
+        # Create directory for each organization
         org_dir = os.path.join(base_dir, org_name)
         Path(org_dir).mkdir(exist_ok=True)
-        
-        # クローン先のパス
+
+        # Target clone path
         target_dir = os.path.join(org_dir, repo_name)
-        
-        # すでにクローン済みの場合はスキップ
+
+        # Skip if already cloned
         if os.path.exists(target_dir):
-            print(f"スキップ: {org_name}/{repo_name} (すでにクローン済み)")
+            print(f"Skip: {org_name}/{repo_name} (already cloned)")
             return True, org_name, repo_name
-            
-        print(f"クローン開始: {org_name}/{repo_name}")
+
+        print(f"Clone started: {org_name}/{repo_name}")
         Repo.clone_from(repo_url, target_dir)
-        print(f"クローン成功: {org_name}/{repo_name}")
+        print(f"Clone successful: {org_name}/{repo_name}")
         return True, org_name, repo_name
     except Exception as e:
-        print(f"クローン失敗: {repo_url} - エラー: {str(e)}")
+        print(f"Clone failed: {repo_url} - Error: {str(e)}")
         return False, "", ""
 
 def main():
-    # コマンドライン引数の確認
+    # Check command line arguments
     if len(sys.argv) != 2:
-        print("使用方法: python repo_cloner.py <CSVファイルのパス>")
+        print("Usage: python repo_cloner.py <CSV file path>")
         sys.exit(1)
 
     csv_path = sys.argv[1]
     base_dir = "repos"
 
-    # ベースディレクトリの作成
+    # Create base directory
     Path(base_dir).mkdir(exist_ok=True)
 
     try:
-        # CSVファイルの読み込み（repourlのみ）
+        # Read CSV file (repourl only)
         df = pd.read_csv(csv_path, names=['repourl'])
-        
-        # クローン結果の集計
+
+        # Aggregate clone results
         total = len(df)
         success = 0
         failed = 0
         skipped = 0
 
-        # 各リポジトリのクローン
+        # Clone each repository
         for _, row in df.iterrows():
             success_flag, org_name, repo_name = clone_repository(row['repourl'], base_dir)
             if success_flag:
@@ -73,15 +73,15 @@ def main():
             else:
                 failed += 1
 
-        # 結果の表示
-        print("\n処理完了")
-        print(f"合計: {total} リポジトリ")
-        print(f"成功: {success} リポジトリ")
-        print(f"失敗: {failed} リポジトリ")
-        print(f"スキップ: {skipped} リポジトリ")
+        # Display results
+        print("\nProcessing completed")
+        print(f"Total: {total} repositories")
+        print(f"Success: {success} repositories")
+        print(f"Failed: {failed} repositories")
+        print(f"Skipped: {skipped} repositories")
 
     except Exception as e:
-        print(f"エラーが発生しました: {str(e)}")
+        print(f"An error occurred: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":

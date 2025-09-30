@@ -8,46 +8,46 @@ from repo_utils import extract_repo_info, run_command, analyze_developers
 
 def analyze_repository(repo_url: str, base_dir: str, output_base_dir: str) -> bool:
     """
-    リポジトリを分析する関数
+    Function to analyze a repository
 
     Args:
-        repo_url: リポジトリのURL
-        base_dir: リポジトリのベースディレクトリ
-        output_base_dir: 出力先のベースディレクトリ
+        repo_url: Repository URL
+        base_dir: Base directory of repositories
+        output_base_dir: Base directory for output
 
     Returns:
-        bool: 分析が成功したかどうか
+        bool: Whether the analysis was successful
     """
     try:
-        # URLから組織名とリポジトリ名を抽出
+        # Extract organization name and repository name from URL
         org_name, repo_name = extract_repo_info(repo_url)
 
-        # リポジトリのパス
+        # Repository path
         repo_path = os.path.join(base_dir, org_name, repo_name)
 
-        # 出力先ディレクトリの作成
+        # Create output directory
         org_output_dir = os.path.join(output_base_dir, org_name)
         Path(org_output_dir).mkdir(exist_ok=True)
 
-        # 出力ファイルのパス
+        # Output file path
         output_file = os.path.join(org_output_dir, f"{repo_name}.md")
 
-        # すでに分析済みの場合はスキップ
+        # Skip if already analyzed
         if os.path.exists(output_file):
-            print(f"スキップ: {org_name}/{repo_name} (すでに分析済み)")
+            print(f"Skip: {org_name}/{repo_name} (already analyzed)")
             return True
 
-        print(f"分析開始: {org_name}/{repo_name}")
+        print(f"Analysis started: {org_name}/{repo_name}")
 
-        # コード行数の取得
+        # Get lines of code
         cloc_output = run_command("cloc .", repo_path)
 
-        # コミット履歴の取得
+        # Get commit history
         git_log = run_command("git log --pretty=format:%H,%ct", repo_path)
 
-        # コミットの重み付け計算
+        # Calculate weighted commit score
         now = datetime.now().timestamp()
-        decay = 30 * 24 * 60 * 60  # 30日を秒に変換
+        decay = 30 * 24 * 60 * 60  # Convert 30 days to seconds
         total_weight = 0.0
 
         for line in git_log.splitlines():
@@ -56,57 +56,57 @@ def analyze_repository(repo_url: str, base_dir: str, output_base_dir: str) -> bo
             weight = exp(-(now - timestamp) / decay)
             total_weight += weight
 
-        # 開発者の情報を取得
+        # Get developer information
         git_shortlog = run_command("git shortlog -sne", repo_path)
         developers = analyze_developers(git_shortlog)
 
-        # 結果をMarkdownファイルに書き出し
+        # Write results to Markdown file
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(f"# {org_name}/{repo_name}\n\n")
-            f.write(f"## コード行数\n")
+            f.write(f"## Lines of Code\n")
             f.write("```\n")
             f.write(f"{cloc_output}")
             f.write("```\n\n")
-            f.write(f"## 変更頻度スコア\n")
+            f.write(f"## Change Frequency Score\n")
             f.write(f"{total_weight:.8f}\n\n")
-            f.write(f"## 開発者\n")
+            f.write(f"## Developers\n")
             f.write(f"```\n{git_shortlog}```\n\n")
-            f.write("### 開発者ドメイン\n")
+            f.write("### Developer Domains\n")
             f.write(f"```\n{developers}\n```\n")
 
-        print(f"分析成功: {org_name}/{repo_name}")
+        print(f"Analysis successful: {org_name}/{repo_name}")
         return True
 
     except Exception as e:
-        print(f"分析失敗: {repo_url} - エラー: {str(e)}")
+        print(f"Analysis failed: {repo_url} - Error: {str(e)}")
         return False
 
 def analyze_local_repository(repo_path: str = ".", output_file: str = "analysis_result.md") -> bool:
     """
-    カレントディレクトリまたは指定したディレクトリを分析する関数
+    Function to analyze the current directory or specified directory
 
     Args:
-        repo_path: 分析対象のディレクトリパス（デフォルト: カレントディレクトリ）
-        output_file: 出力ファイル名（デフォルト: analysis_result.md）
+        repo_path: Directory path to analyze (default: current directory)
+        output_file: Output filename (default: analysis_result.md)
 
     Returns:
-        bool: 分析が成功したかどうか
+        bool: Whether the analysis was successful
     """
     try:
         repo_path = os.path.abspath(repo_path)
         repo_name = os.path.basename(repo_path)
 
-        print(f"分析開始: {repo_path}")
+        print(f"Analysis started: {repo_path}")
 
-        # コード行数の取得
+        # Get lines of code
         cloc_output = run_command("cloc .", repo_path)
 
-        # コミット履歴の取得
+        # Get commit history
         git_log = run_command("git log --pretty=format:%H,%ct", repo_path)
 
-        # コミットの重み付け計算
+        # Calculate weighted commit score
         now = datetime.now().timestamp()
-        decay = 30 * 24 * 60 * 60  # 30日を秒に変換
+        decay = 30 * 24 * 60 * 60  # Convert 30 days to seconds
         total_weight = 0.0
 
         for line in git_log.splitlines():
@@ -117,41 +117,41 @@ def analyze_local_repository(repo_path: str = ".", output_file: str = "analysis_
             weight = exp(-(now - timestamp) / decay)
             total_weight += weight
 
-        # 開発者の情報を取得
+        # Get developer information
         git_shortlog = run_command("git shortlog -sne", repo_path)
         developers = analyze_developers(git_shortlog)
 
-        # 結果をMarkdownファイルに書き出し
+        # Write results to Markdown file
         with open(output_file, 'w', encoding='utf-8') as f:
             f.write(f"# {repo_name}\n\n")
-            f.write(f"## コード行数\n")
+            f.write(f"## Lines of Code\n")
             f.write("```\n")
             f.write(f"{cloc_output}")
             f.write("```\n\n")
-            f.write(f"## 変更頻度スコア\n")
+            f.write(f"## Change Frequency Score\n")
             f.write(f"{total_weight:.8f}\n\n")
-            f.write(f"## 開発者\n")
+            f.write(f"## Developers\n")
             f.write(f"```\n{git_shortlog}```\n\n")
-            f.write("### 開発者ドメイン\n")
+            f.write("### Developer Domains\n")
             f.write(f"```\n{developers}\n```\n")
 
-        print(f"分析成功: {repo_path}")
-        print(f"結果を {output_file} に出力しました")
+        print(f"Analysis successful: {repo_path}")
+        print(f"Results written to {output_file}")
         return True
 
     except Exception as e:
-        print(f"分析失敗: {repo_path} - エラー: {str(e)}")
+        print(f"Analysis failed: {repo_path} - Error: {str(e)}")
         return False
 
 def main():
-    # コマンドライン引数の確認
+    # Check command line arguments
     if len(sys.argv) < 2:
-        print("使用方法:")
-        print("  CSVからの分析: python repo_analyzer.py <CSVファイルのパス>")
-        print("  カレントディレクトリの分析: python repo_analyzer.py --local [出力ファイル名]")
+        print("Usage:")
+        print("  Analyze from CSV: python repo_analyzer.py <CSV file path>")
+        print("  Analyze current directory: python repo_analyzer.py --local [output filename]")
         sys.exit(1)
 
-    # ローカル分析モード
+    # Local analysis mode
     if sys.argv[1] == "--local":
         output_file = sys.argv[2] if len(sys.argv) > 2 else "analysis_result.md"
         analyze_local_repository(".", output_file)
@@ -161,20 +161,20 @@ def main():
     base_dir = "repos"
     output_base_dir = "analysis_results"
 
-    # 出力ディレクトリの作成
+    # Create output directory
     Path(output_base_dir).mkdir(exist_ok=True)
 
     try:
-        # CSVファイルの読み込み（repourlのみ）
+        # Read CSV file (repourl only)
         df = pd.read_csv(csv_path, names=['repourl'])
 
-        # 分析結果の集計
+        # Aggregate analysis results
         total = len(df)
         success = 0
         failed = 0
         skipped = 0
 
-        # 各リポジトリの分析
+        # Analyze each repository
         for _, row in df.iterrows():
             success_flag = analyze_repository(row['repourl'], base_dir, output_base_dir)
             if success_flag:
@@ -182,15 +182,15 @@ def main():
             else:
                 failed += 1
 
-        # 結果の表示
-        print("\n処理完了")
-        print(f"合計: {total} リポジトリ")
-        print(f"成功: {success} リポジトリ")
-        print(f"失敗: {failed} リポジトリ")
-        print(f"スキップ: {skipped} リポジトリ")
+        # Display results
+        print("\nProcessing completed")
+        print(f"Total: {total} repositories")
+        print(f"Success: {success} repositories")
+        print(f"Failed: {failed} repositories")
+        print(f"Skipped: {skipped} repositories")
 
     except Exception as e:
-        print(f"エラーが発生しました: {str(e)}")
+        print(f"An error occurred: {str(e)}")
         sys.exit(1)
 
 if __name__ == "__main__":
